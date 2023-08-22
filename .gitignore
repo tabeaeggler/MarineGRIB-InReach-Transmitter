@@ -1,0 +1,4 @@
+token.pickle
+credentials.json
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
