@@ -7,6 +7,7 @@ import os
 import configs as configs
 import email_functions as email_func
 
+
 def process_saildocs_grib_file(path):
     """Process the SailDocs GRIB file, extract wind magnitude and direction information.
     

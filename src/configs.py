@@ -16,7 +16,7 @@ SAILDOCS_RESPONSE_EMAIL = "query-reply@saildocs.com"
 INREACH_BASE_URL_POST_REQUEST_EUR = 'https://eur.explore.garmin.com/TextMessage/TxtMsg' 
 INREACH_BASE_URL_POST_REQUEST_DEFAULT = 'https://explore.garmin.com/TextMessage/TxtMsg' 
 
-# E-Mail header
+# E-Mail Headers
 INREACH_HEADERS = {
     'authority': 'explore.garmin.com',
     'accept': '*/*',

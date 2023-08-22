@@ -8,6 +8,7 @@ from google.auth.transport.requests import Request
 
 import configs as configs
 
+
 # Set up the Gmail API: https://developers.google.com/gmail/api/quickstart/python
 
 def gmail_authenticate():
