@@ -7,8 +7,6 @@ import sys
 sys.path.append(".")
 from src import configs
 
-_MESSAGE_SPLIT_LENGTH = 120
-_DELAY_BETWEEN_MESSAGES = 10
 
 def send_messages_to_inreach(url, gribmessage):
     """
@@ -26,7 +24,7 @@ def send_messages_to_inreach(url, gribmessage):
     responses = [_post_request_to_inreach(url, part) for part in message_parts]
     
     # Introducing a delay to prevent overwhelming the API
-    time.sleep(_DELAY_BETWEEN_MESSAGES)
+    time.sleep(configs.DELAY_BETWEEN_MESSAGES)
     
     return responses
 
@@ -44,7 +42,7 @@ def _split_message(gribmessage):
     Returns:
     list: A list of formatted strings where each string has the format `index\nchunk\nindex`.
     """
-    chunks = [gribmessage[i:i+_MESSAGE_SPLIT_LENGTH] for i in range(0, len(gribmessage), _MESSAGE_SPLIT_LENGTH)]
+    chunks = [gribmessage[i:i+configs.MESSAGE_SPLIT_LENGTH] for i in range(0, len(gribmessage), configs.MESSAGE_SPLIT_LENGTH)]
     return [f"{index}\n{chunk}\n{index}" for index, chunk in enumerate(chunks)]
 
 

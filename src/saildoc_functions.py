@@ -4,7 +4,7 @@ import xarray as xr
 import numpy as np
 import os
 import base64
-
+import zlib
 import sys
 sys.path.append(".")
 from src import configs
@@ -13,23 +13,27 @@ from src import email_functions as email_func
 
 def encode_saildocs_grib_file(file_path):
     """
-    Encodes the content of a GRIB file into a base64 string.
+    Reads the content of a GRIB file, compresses it using zlib, then encodes the compressed data into a base64 string.
     
     Args:
     file_path (str): Path to the GRIB file that needs to be encoded.
     
     Returns:
-    str: Base64 encoded string representation of the GRIB file content.
+    str: Base64 encoded string representation of the zlib compressed GRIB file content.
     """
     
     # Open the file in binary read mode and read its content
-    with open(file_path, 'rb') as file:
+    with open(file_path[0], 'rb') as file:
         grib_binary = file.read()
 
-    # Convert the binary content to a base64 encoded string
-    encoded_data = base64.b64encode(grib_binary).decode('utf-8')
+    # Compress the binary content using zlib
+    compressed_grib = zlib.compress(grib_binary)
+
+    # Convert the compressed content to a base64 encoded string
+    encoded_data = base64.b64encode(compressed_grib).decode('utf-8')
 
     return encoded_data
+
 
 
 def wait_for_saildocs_response(auth_service, time_sent):
