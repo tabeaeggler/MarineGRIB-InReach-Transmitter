@@ -129,7 +129,7 @@ def get_attachments(service, msg_id, user_id='me', save_path='.'):
 
 
 
-def check_and_answer_mail(auth_service):
+def handle_new_inreach_messages(auth_service):
     """
     Check for new messages, process them, and record their IDs.
 
@@ -141,8 +141,8 @@ def check_and_answer_mail(auth_service):
     
     for message_id in unanswered_messages:
         try:
-            answer_service(message_id, auth_service)
-            print(f"Successfully answered message {message_id}", flush=True)
+            process_and_respond_to_message(message_id, auth_service)
+            print(f"Answered message {message_id}", flush=True)
         except Exception as e:
             print(f"Error answering message {message_id}: {e}", flush=True)
         finally:
@@ -150,7 +150,7 @@ def check_and_answer_mail(auth_service):
 
 
 
-def answer_service(message_id, auth_service):
+def process_and_respond_to_message(message_id, auth_service):
     """
     Process the given message ID: validate its content, fetch necessary data, 
     and send back the appropriate response.
@@ -186,23 +186,12 @@ def answer_service(message_id, auth_service):
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Could not download attachment")
         return False
 
-    bin_data, timepoints, latmin, latmax, lonmin, lonmax, latdiff, londiff, gribtime = saildoc_func.process_saildocs_grib_file(grib_path)
-    for shift in range(1, 10): 
-        message_parts = inreach_func.message_encoder_splitter(bin_data, timepoints, latmin, latmax, lonmin, lonmax, latdiff, londiff, gribtime, shift)
-        for part in message_parts:
-            res = inreach_func.send_reply_to_inreach(garmin_reply_url, part)
-            if res.status_code != 200:
-                time.sleep(10)
-                if part == message_parts[0]:
-                    break
-                else:
-                    inreach_func.send_reply_to_inreach(garmin_reply_url, 'Message failed attempting shift')
-                    break
-            time.sleep(10)
-        if res.status_code == 200:
-            return True
-    
-    inreach_func.send_reply_to_inreach(garmin_reply_url, "All shifts failed")
+    # encode grib to binary
+    encoded_grib = saildoc_func.encode_saildocs_grib_file(grib_path)
+
+    # send encoded grib to inreach
+    inreach_func.send_messages_to_inreach(garmin_reply_url, encoded_grib)
+
     return False
 
 

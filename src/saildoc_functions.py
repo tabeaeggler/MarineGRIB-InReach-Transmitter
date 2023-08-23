@@ -3,6 +3,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 import os
+import base64
 
 import sys
 sys.path.append(".")
@@ -10,56 +11,25 @@ from src import configs
 from src import email_functions as email_func
 
 
-def process_saildocs_grib_file(path):
-    """Process the SailDocs GRIB file, extract wind magnitude and direction information.
+def encode_saildocs_grib_file(file_path):
+    """
+    Encodes the content of a GRIB file into a base64 string.
     
     Args:
-    path (str): Path to the GRIB file.
-
+    file_path (str): Path to the GRIB file that needs to be encoded.
+    
     Returns:
-    tuple: Comprises wind data in binary format, timepoints, and geolocation details.
+    str: Base64 encoded string representation of the GRIB file content.
     """
+    
+    # Open the file in binary read mode and read its content
+    with open(file_path, 'rb') as file:
+        grib_binary = file.read()
 
-    dataset = xr.open_dataset(path[0], engine='cfgrib')
-    grib = dataset.to_dataframe()
+    # Convert the binary content to a base64 encoded string
+    encoded_data = base64.b64encode(grib_binary).decode('utf-8')
 
-    # Extracting unique timepoints, latitudes and longitudes
-    try:
-        grib = xr.open_dataset(path[0], engine='cfgrib').to_dataframe()
-    except Exception as e:
-        print(f"Error reading grib file: {e}")
-
-    timepoints = _get_unique_values_from_index(grib, 0)
-    latitudes = _get_unique_values_from_index(grib, 1)
-    longitudes = _get_unique_values_from_index(grib, 2)
-    latmin, latmax = latitudes.min(), latitudes.max()
-    lonmin, lonmax = longitudes.min(), longitudes.max()
-    latdiff = _get_difference(latitudes)
-    londiff = _get_difference(longitudes)
-    gribtime = grib['time'].iloc[0]
-
-    # Calculating wind magnitude: grabs the U-component and V-component of wind speed, calculates the magnitude in kts, rounds to the nearest 5kt speed, and converts to binary.
-    wind_magnitude = (
-        (np.sqrt(grib['u10'] ** 2 + grib['v10'] ** 2) * 1.94384 / 5)
-        .round()
-        .astype('int')
-        .clip(upper=15)
-        .apply(lambda x: "{0:04b}".format(x))
-        .str.cat()
-    )
-    #  Calculating wind direction: encodes the wind direction into 16 cardinal directions and converts to binary.
-    wind_direction = (
-        (((round(np.arctan2(grib['v10'], grib['u10']) / (2 * np.pi / 16))) + 16) % 16)
-        .astype('int')
-        .apply(lambda x: "{0:04b}".format(x))
-        .str.cat()
-    )
-
-    # Clean up: remove the GRIB file after processing
-    os.remove(path[0])
-
-    return (wind_magnitude + wind_direction, timepoints, latmin, latmax, lonmin, lonmax, latdiff, londiff, gribtime)
-
+    return encoded_data
 
 
 def wait_for_saildocs_response(auth_service, time_sent):
@@ -80,16 +50,3 @@ def wait_for_saildocs_response(auth_service, time_sent):
             return last_response
     return None
 
-
-
-
-######## HELPERS ########
-
-def _get_unique_values_from_index(dataframe, level):
-    """Helper to get unique values from a multi-index dataframe based on the specified level."""
-    return dataframe.index.get_level_values(level).unique()
-
-def _get_difference(data):
-    """Helper to compute the difference between consecutive values and ensure uniqueness."""
-    diff = pd.Series(data).diff().dropna().round(6).unique()
-    return diff

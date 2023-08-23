@@ -1,62 +1,64 @@
 import numpy as np
 import requests
 import random
+import time
 
 import sys
 sys.path.append(".")
 from src import configs
 
+_MESSAGE_SPLIT_LENGTH = 120
+_DELAY_BETWEEN_MESSAGES = 10
 
-ALLOWED_CHARS = """!"#$%\'()*+,-./:;<=>?_¡£¥¿&¤0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÅÆÇÉÑØøÜßÖàäåæèéìñòöùüΔΦΓΛΩΠΨΣΘΞ"""
-EXTRA_CHARS = {122: '@!', 123: '@@', 124: '@#', 125: '@$', 126: '@%', 127: '@?'}
-
-
-def message_encoder_splitter(bin_data, timepoints, latmin, latmax, lonmin, lonmax, latdiff, londiff, gribtime, shift):
+def send_messages_to_inreach(url, gribmessage):
     """
-    Encodes grib binary data into characters suitable for inReach transmission.
+    Splits the gribmessage and sends each part to InReach.
 
     Parameters:
-    - bin_data (str): Binary representation of grib data.
-    - timepoints (list): List of timepoints.
-    - latmin, latmax, lonmin, lonmax (float): Latitude and Longitude boundaries.
-    - latdiff, londiff (list): Latitude and Longitude differences.
-    - gribtime (str): The time associated with the grib data.
-    - shift (int): The number of positions each character should be shifted during encoding.
+    - url (str): The target URL for the InReach API.
+    - gribmessage (str): The full message string to be split and sent.
 
     Returns:
-    - list: A list of encoded message parts.
+    - list: A list of response objects from the InReach API for each sent message.
     """
+    print('original message: ', gribmessage)
+    message_parts = _split_message(gribmessage)
+    responses = [_post_request_to_inreach(url, part) for part in message_parts]
     
-    encoded_chunks = [_encoder(bin_data[i:i+7], shift) for i in range(0, len(bin_data), 7)]
-    encoded = ''.join(encoded_chunks)
-
-    times = ",".join((timepoints / np.timedelta64(1, 'h')).astype('int').astype('str').tolist())
-    minmax = ','.join(str(x) for x in [latmin, latmax, lonmin, lonmax])
-    diff = f"{latdiff[0]},{londiff[0]}"
-    data = encoded
-    gribmessage = f"{times};{gribtime};{minmax};{diff};{shift}START_MSG{data}END_MSG"
+    # Introducing a delay to prevent overwhelming the API
+    time.sleep(_DELAY_BETWEEN_MESSAGES)
     
-    msg_len = 120
-    message_parts = [gribmessage[i:i+msg_len] for i in range(0, len(gribmessage), msg_len)]
-    
-    return [f"{index}\n{part}\n{index}" if index > 0 else f"{part}\n{index}" for index, part in enumerate(message_parts)]
+    return responses
 
 
 
+######## HELPERS ########
 
-
-def send_reply_to_inreach(url, message_str):
+def _split_message(gribmessage):
     """
-    Sends a message string as a reply to a given inReach URL.
-
-    Parameters:
-    - url (str): The inReach URL to which the reply should be sent.
-    - message_str (str): The message content to be sent as a reply.
-
+    Splits a given grib message into chunks and encapsulates each chunk with its index.
+    
+    Args:
+    gribmessage (str): The grib message that needs to be split into chunks.
+    
     Returns:
-    - requests.Response: The response object from the POST request to the inReach service.
+    list: A list of formatted strings where each string has the format `index\nchunk\nindex`.
     """
+    chunks = [gribmessage[i:i+_MESSAGE_SPLIT_LENGTH] for i in range(0, len(gribmessage), _MESSAGE_SPLIT_LENGTH)]
+    return [f"{index}\n{chunk}\n{index}" for index, chunk in enumerate(chunks)]
+
+
+def _post_request_to_inreach(url, message_str): 
+    """
+    Sends a post request with the message to the specified InReach URL.
     
+    Args:
+    url (str): The InReach endpoint URL to send the post request.
+    message_str (str): The message string to be sent to InReach.
+    
+    Returns:
+    Response: A Response object containing the server's response to the request.
+    """
     guid = url.split('extId=')[1].split('&adr')[0]
     data = {
         'ReplyAddress': configs.GMAIL_ADDRESS,
@@ -66,35 +68,11 @@ def send_reply_to_inreach(url, message_str):
     }
     
     response = requests.post(url, cookies=configs.INREACH_COOKIES, headers=configs.INREACH_HEADERS, data=data)
-
     if response.status_code == 200:
-        print('Reply to InReach Sent: ', message_str)
-    #else:
-        #print('Error!')
-    
+        print('Reply to InReach Sent:', message_str)
+    else:
+        print('Error sending part:', message_str)
+        print(f'Status Code: {response.status_code}')
+        print(f'Response Content: {response.content}')
+        
     return response
-
-
-
-
-######## HELPERS ########
-
-def _encoder(binary_chunk, shift):
-    """
-    Helper to encode a binary chunk using a specified shift on ALLOWED_CHARS.
-
-    Parameters:
-    - binary_chunk (str): A string representation of the binary data to be encoded.
-    - shift (int): The number of positions each character in ALLOWED_CHARS should be shifted.
-
-    Returns:
-    - str: Encoded representation of the binary_chunk.
-    """
-    
-    if len(binary_chunk) < 7:
-        binary_chunk = binary_chunk + '0' * (7 - len(binary_chunk))
-
-    new_chars = ALLOWED_CHARS[shift:] + ALLOWED_CHARS[:shift]
-    decimal_value = int(binary_chunk, 2)
-    
-    return new_chars[decimal_value] if decimal_value < 122 else EXTRA_CHARS[decimal_value]
