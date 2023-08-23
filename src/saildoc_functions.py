@@ -4,8 +4,10 @@ import xarray as xr
 import numpy as np
 import os
 
-import configs as configs
-import email_functions as email_func
+import sys
+sys.path.append(".")
+from src import configs
+from src import email_functions as email_func
 
 
 def process_saildocs_grib_file(path):

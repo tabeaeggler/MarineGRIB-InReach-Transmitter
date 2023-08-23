@@ -1,7 +1,10 @@
 import numpy as np
 import requests
 import random
-import configs
+
+import sys
+sys.path.append(".")
+from src import configs
 
 
 ALLOWED_CHARS = """!"#$%\'()*+,-./:;<=>?_¡£¥¿&¤0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÅÆÇÉÑØøÜßÖàäåæèéìñòöùüΔΦΓΛΩΠΨΣΘΞ"""
@@ -31,12 +34,14 @@ def message_encoder_splitter(bin_data, timepoints, latmin, latmax, lonmin, lonma
     minmax = ','.join(str(x) for x in [latmin, latmax, lonmin, lonmax])
     diff = f"{latdiff[0]},{londiff[0]}"
     data = encoded
-    gribmessage = f"{times}{gribtime}{minmax}{diff}{shift}{data}END"
+    gribmessage = f"{times};{gribtime};{minmax};{diff};{shift}START_MSG{data}END_MSG"
     
     msg_len = 120
     message_parts = [gribmessage[i:i+msg_len] for i in range(0, len(gribmessage), msg_len)]
     
-    return [f"{part}\n{index}" if index > 0 else f"{index}\n{part}" for index, part in enumerate(message_parts)]
+    return [f"{index}\n{part}\n{index}" if index > 0 else f"{part}\n{index}" for index, part in enumerate(message_parts)]
+
+
 
 
 
@@ -54,7 +59,7 @@ def send_reply_to_inreach(url, message_str):
     
     guid = url.split('extId=')[1].split('&adr')[0]
     data = {
-        'ReplyAddress': configs.GMAIL_EMAIL,
+        'ReplyAddress': configs.GMAIL_ADDRESS,
         'ReplyMessage': message_str,
         'MessageId': str(random.randint(10000000, 99999999)),
         'Guid': guid,
@@ -63,9 +68,9 @@ def send_reply_to_inreach(url, message_str):
     response = requests.post(url, cookies=configs.INREACH_COOKIES, headers=configs.INREACH_HEADERS, data=data)
 
     if response.status_code == 200:
-        print('Reply to InReach Sent', message_str)
-    else:
-        print('Error!')
+        print('Reply to InReach Sent: ', message_str)
+    #else:
+        #print('Error!')
     
     return response
 

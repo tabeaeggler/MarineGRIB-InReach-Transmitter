@@ -8,7 +8,7 @@ LIST_OF_PREVIOUS_MESSAGES_FILE_LOCATION = "./files/prev_messages.txt"
 SCOPES = ['https://mail.google.com/']
 
 # E-Mails and Links
-GMAIL_EMAIL = "FILL IN"
+GMAIL_ADDRESS = "FILL IN"
 SERVICE_EMAIL = "no.reply.inreach@garmin.com"
 BASE_GARMIN_REPLY_URL = 'explore.garmin.com'
 SAILDOCS_EMAIL_QUERY = "query@saildocs.com"
