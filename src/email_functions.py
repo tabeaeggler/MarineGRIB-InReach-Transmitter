@@ -3,7 +3,6 @@ import pickle
 import base64
 from email.mime.text import MIMEText
 from base64 import urlsafe_b64decode
-import time
 from datetime import datetime
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -97,35 +96,36 @@ def search_messages(service, query):
 
 
 
-def get_attachments(service, msg_id, user_id='me', save_path='.'):
+def get_attachments(service, msg_id, user_id='me'):
     """Retrieve and save attachments from a Gmail message.
     
     Args:
     service: Authenticated Gmail API service instance.
     msg_id (str): ID of the Gmail message.
     user_id (str, optional): Gmail user ID. Defaults to 'me' for the authenticated user.
-    save_path (str, optional): Path to save downloaded attachments. Defaults to current directory.
 
     Returns:
     list: Paths to the downloaded attachments.
     """
     try:
         message = service.users().messages().get(userId=user_id, id=msg_id).execute()
+        parts = message['payload']['parts']
+        
         attachments_paths = []
-
-        for part in message['payload']['parts']:
-            if part['filename']:
-                if 'data' in part['body']:
-                    data = part['body']['data']
-                else:
-                    att_id = part['body']['attachmentId']
-                    path = _download_attachment(service, user_id, msg_id, att_id, part['filename'])
-                    attachments_paths.append(path)         
+        for part in parts:
+            print('part:', part)
+            if part.get('filename') and 'attachmentId' in part['body']:
+                path = _download_attachment(service, user_id, msg_id, part['body']['attachmentId'], part['filename'])
+                print('path: ', path)
+                attachments_paths.append(path)
+        
+        print(f"Number of attachments: {len(attachments_paths)}")
         return attachments_paths
 
     except Exception as error:
         print(f'An error occurred: {error}')
         return []
+
 
 
 
