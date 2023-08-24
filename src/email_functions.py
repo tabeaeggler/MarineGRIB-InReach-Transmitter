@@ -96,8 +96,8 @@ def search_messages(service, query):
 
 
 
-def get_attachments(service, msg_id, user_id='me'):
-    """Retrieve and save attachments from a Gmail message.
+def get_grib_attachment(service, msg_id, user_id='me'):
+    """Retrieve and save the first GRIB attachment from a Gmail message.
     
     Args:
     service: Authenticated Gmail API service instance.
@@ -105,27 +105,24 @@ def get_attachments(service, msg_id, user_id='me'):
     user_id (str, optional): Gmail user ID. Defaults to 'me' for the authenticated user.
 
     Returns:
-    list: Paths to the downloaded attachments.
+    str: Path to the downloaded GRIB attachment, or None if no suitable attachment found.
     """
     try:
         message = service.users().messages().get(userId=user_id, id=msg_id).execute()
         parts = message['payload']['parts']
         
-        attachments_paths = []
         for part in parts:
-            print('part:', part)
-            if part.get('filename') and 'attachmentId' in part['body']:
-                path = _download_attachment(service, user_id, msg_id, part['body']['attachmentId'], part['filename'])
-                print('path: ', path)
-                attachments_paths.append(path)
+            filename = part.get('filename')
+            if filename and filename.endswith('.grb') and 'attachmentId' in part['body']:
+                path = _download_attachment(service, user_id, msg_id, part['body']['attachmentId'], filename)
+                return path
         
-        print(f"Number of attachments: {len(attachments_paths)}")
-        return attachments_paths
+        print("No GRIB attachment found.")
+        return None
 
     except Exception as error:
         print(f'An error occurred: {error}')
-        return []
-
+        return None
 
 
 
@@ -174,14 +171,14 @@ def process_and_respond_to_message(message_id, auth_service):
     send_message(auth_service, configs.SAILDOCS_EMAIL_QUERY, "", "send " + msg_text)
     time_sent = datetime.utcnow()
     last_response = saildoc_func.wait_for_saildocs_response(auth_service, time_sent)
-    
+
     if not last_response:
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Saildocs timeout")
         return False
 
     # Process the saildocs response
     try:
-        grib_path = get_attachments(auth_service, last_response['id'])
+        grib_path = get_grib_attachment(auth_service, last_response['id'])
     except:
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Could not download attachment")
         return False

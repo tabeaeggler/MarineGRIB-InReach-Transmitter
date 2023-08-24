@@ -18,7 +18,6 @@ def send_messages_to_inreach(url, gribmessage):
     Returns:
     - list: A list of response objects from the InReach API for each sent message.
     """
-    print('original message: ', gribmessage)
     message_parts = _split_message(gribmessage)
     responses = [_post_request_to_inreach(url, part) for part in message_parts]
     

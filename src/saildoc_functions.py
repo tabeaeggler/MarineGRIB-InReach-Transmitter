@@ -20,7 +20,7 @@ def encode_saildocs_grib_file(file_path):
     """
     
     # Open the file in binary read mode and read its content
-    with open(file_path[0], 'rb') as file:
+    with open(file_path, 'rb') as file:
         grib_binary = file.read()
 
     # Compress the binary content using zlib
