@@ -38,10 +38,17 @@ def _split_message(gribmessage):
     gribmessage (str): The grib message that needs to be split into chunks.
     
     Returns:
-    list: A list of formatted strings where each string has the format `index\nchunk\nindex`.
+    list: A list of formatted strings where each string has the format `start message {index}/{total_splits}:\n{chunk}\nend message {index}/{total_splits}`.
     """
-    chunks = [gribmessage[i:i+configs.MESSAGE_SPLIT_LENGTH] for i in range(0, len(gribmessage), configs.MESSAGE_SPLIT_LENGTH)]
-    return [f"{index}\n{chunk}\n{index}" for index, chunk in enumerate(chunks)]
+    total_splits = (len(gribmessage) + configs.MESSAGE_SPLIT_LENGTH - 1) // configs.MESSAGE_SPLIT_LENGTH
+
+    chunks = [gribmessage[i:i + configs.MESSAGE_SPLIT_LENGTH] for i in range(0, len(gribmessage), configs.MESSAGE_SPLIT_LENGTH)]
+
+    formatted_chunks = [
+        f"start message {index + 1}/{total_splits}:\n{chunk}\nend message {index + 1}/{total_splits}"
+        for index, chunk in enumerate(chunks)
+    ]
+    return formatted_chunks
 
 
 def _post_request_to_inreach(url, message_str): 

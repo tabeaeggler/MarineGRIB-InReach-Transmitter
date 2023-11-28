@@ -1,4 +1,5 @@
 import os
+import re
 import pickle
 import base64
 from email.mime.text import MIMEText
@@ -33,8 +34,8 @@ def gmail_authenticate():
 
 
 
-def build_message(destination, obj, body):
-    """Construct a MIMEText message for the Gmail API.
+def build_gmail_message(destination, obj, body):
+    """Construct a MIMEText message for Gmail API.
     
     Args:
     destination (str): Email address of the recipient.
@@ -53,7 +54,7 @@ def build_message(destination, obj, body):
 
 
 
-def send_message(service, destination, obj, body):
+def send_gmail_message(service, destination, obj, body):
     """Send an email message through Gmail API.
     
     Args:
@@ -67,11 +68,11 @@ def send_message(service, destination, obj, body):
     """
     return service.users().messages().send(
         userId="me",
-        body=build_message(destination, obj, body)
+        body=build_gmail_message(destination, obj, body)
     ).execute()
 
 
-def search_messages(service, query):
+def search_gmail_messages(service, query):
     """Search for Gmail messages that match a query. Loop will continue retrieving pages of messages as long as there's a nextPageToken.
     
     Args:
@@ -102,7 +103,7 @@ def get_grib_attachment(service, msg_id, user_id='me'):
     Args:
     service: Authenticated Gmail API service instance.
     msg_id (str): ID of the Gmail message.
-    user_id (str, optional): Gmail user ID. Defaults to 'me' for the authenticated user.
+    user_id (str, optional): Gmail user ID.
 
     Returns:
     str: Path to the downloaded GRIB attachment, or None if no suitable attachment found.
@@ -162,13 +163,14 @@ def process_and_respond_to_message(message_id, auth_service):
     
     msg_text, garmin_reply_url = _fetch_message_text_and_url(message_id, auth_service)
 
-    # Check the model in the message
-    if not msg_text.startswith(('ecmwf', 'gfs')):
-        inreach_func.send_reply_to_inreach(garmin_reply_url, "Invalid model")
+    # check the correctness of Saildoc request
+    is_valid, error_message = _is_valid_saildoc_request(msg_text)
+    if not is_valid:
+        inreach_func.send_reply_to_inreach(garmin_reply_url, f"Invalid Saildoc request: {error_message}")
         return False
 
-    # Request saildocs grib data
-    send_message(auth_service, configs.SAILDOCS_EMAIL_QUERY, "", "send " + msg_text)
+    # request saildocs grib data
+    send_gmail_message(auth_service, configs.SAILDOCS_EMAIL_QUERY, "", "send " + msg_text)
     time_sent = datetime.utcnow()
     last_response = saildoc_func.wait_for_saildocs_response(auth_service, time_sent)
 
@@ -176,11 +178,11 @@ def process_and_respond_to_message(message_id, auth_service):
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Saildocs timeout")
         return False
 
-    # Process the saildocs response
+    # process the saildocs response
     try:
         grib_path = get_grib_attachment(auth_service, last_response['id'])
     except:
-        inreach_func.send_reply_to_inreach(garmin_reply_url, "Could not download attachment")
+        inreach_func.send_reply_to_inreach(garmin_reply_url, "Could not download grib attachment")
         return False
 
     # encode grib to binary
@@ -195,6 +197,45 @@ def process_and_respond_to_message(message_id, auth_service):
 
 
 ######## HELPERS ########
+
+
+def _is_valid_saildoc_request(msg_text):
+
+    # Validate message text pattern
+    saildoc_pattern = re.compile(r'^(send|sub|cancel)?\s?(gfs|ecmwf):(\d+[NSWE],\d+[NSWE],\d+[NSWE],\d+[NSWE]\|\d+,\d+\|\d+(,\d+)*\|[a-zA-Z,]+)$')
+    match = re.match(saildoc_pattern, msg_text)
+    if not match:
+        return False, "Invalid request format"
+
+    # Extract components from the matched pattern for additional validation
+    command, model, location, grid_spacing, times, params = match.groups()
+
+    # Validate command
+    if command not in ["send", "sub", "cancel", ""]:
+        return False, f"Invalid command: '{command}' is not a valid command."
+
+    # Validate weather models
+    if model not in ["GFS", "GFSwave", "WW3", "ECMWF", "ICON" "NAVGEM", "COAMPS", "HRRR", "RTOFS", "NDFD"]:
+        return False, f"Invalid weather model: '{model}' is not a valid weather model."
+
+    # Validate latitude, longitude
+    lat_lon_match = re.match(r'(\d+)([NSWE]),(\d+)([NSWE]),(\d+)([NSWE]),(\d+)([NSWE])', location)
+    if not lat_lon_match:
+        return False, "Invalid location format"
+
+    # Validate grid spacing
+    grid_spacing_match = re.match(r'(\d+),(\d+)', grid_spacing)
+    if not grid_spacing_match:
+        return False, "Invalid grid spacing format"
+    
+    # Validate valid times
+    valid_times_match = re.search(r'\|(\d+(,\d+)*)', times)
+    if not valid_times_match:
+        return False, "Invalid valid times format"
+
+    return True, "Saildoc request is valid."
+
+
 
 def _get_new_or_refreshed_credentials(creds):
     """Helper to obtain new credentials or refresh expired ones.
@@ -270,7 +311,7 @@ def _get_new_inreach_messages(auth_service, previous_messages):
     Returns:
         set: A set of new message IDs that haven't been processed.
     """
-    inreach_msgs = search_messages(auth_service, configs.SERVICE_EMAIL)
+    inreach_msgs = search_gmail_messages(auth_service, configs.SERVICE_EMAIL)
     inreach_msgs_ids = {msg['id'] for msg in inreach_msgs}
     
     return inreach_msgs_ids.difference(previous_messages)
