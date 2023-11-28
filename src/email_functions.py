@@ -54,7 +54,7 @@ def process_new_inreach_message(auth_service):
     grib_paths = []
     for message_id in unanswered_messages:
         try:
-            grib_path = _request_and_process_saildocs_grib(message_id, auth_service)
+            grib_path, garmin_reply_url = _request_and_process_saildocs_grib(message_id, auth_service)
             grib_paths.append(grib_path)
             print(f"Answered message {message_id}", flush=True)
         except Exception as e:
@@ -62,7 +62,7 @@ def process_new_inreach_message(auth_service):
         finally:
             _append_to_previous_messages(message_id)
 
-    return grib_paths
+    return grib_paths, garmin_reply_url
 
 
 
