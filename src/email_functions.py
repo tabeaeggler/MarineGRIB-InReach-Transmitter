@@ -34,7 +34,6 @@ def gmail_authenticate():
     return build('gmail', 'v1', credentials=creds)
 
 
-
 def process_new_inreach_message(auth_service):
     """
     Check for new messages, process them, and record their IDs.
@@ -43,26 +42,33 @@ def process_new_inreach_message(auth_service):
         auth_service (obj): The authentication service object.
 
     Returns:
-        str or None: The path to the downloaded GRIB attachment, or None if there are no new messages.
+        tuple or None: A tuple containing the path to the downloaded GRIB attachment and the Garmin reply URL
+                       if successful, None otherwise.
     """
     previous_messages = _load_previous_messages()
     unanswered_messages = _get_new_message_ID(auth_service, previous_messages)
 
     if not unanswered_messages:
         return None
-    
-    grib_paths = []
+
+    grib_path = None
+    garmin_reply_url = None
+
     for message_id in unanswered_messages:
         try:
+            print("check 2")
             grib_path, garmin_reply_url = _request_and_process_saildocs_grib(message_id, auth_service)
-            grib_paths.append(grib_path)
             print(f"Answered message {message_id}", flush=True)
         except Exception as e:
+            print("check 4")
             print(f"Error answering message {message_id}: {e}", flush=True)
         finally:
             _append_to_previous_messages(message_id)
 
-    return grib_paths, garmin_reply_url
+    print("check 3")
+    return grib_path, garmin_reply_url
+
+
 
 
 
@@ -72,7 +78,7 @@ def process_new_inreach_message(auth_service):
 
 def _build_gmail_message(destination, obj, body):
     """Construct a MIMEText message for Gmail API.
-    
+
     Args:
     destination (str): Email address of the recipient.
     obj (str): Subject of the email.
@@ -92,7 +98,7 @@ def _build_gmail_message(destination, obj, body):
 
 def _send_gmail_message(service, destination, obj, body):
     """Send an email message through Gmail API.
-    
+
     Args:
     service: Authenticated Gmail API service instance.
     destination (str): Email address of the recipient.
@@ -111,7 +117,7 @@ def _send_gmail_message(service, destination, obj, body):
 
 def _search_gmail_messages(service, query):
     """Search for Gmail messages that match a query. Loop will continue retrieving pages of messages as long as there's a nextPageToken.
-    
+
     Args:
     service: Authenticated Gmail API service instance.
     query (str): Query string to filter messages.
@@ -126,7 +132,7 @@ def _search_gmail_messages(service, query):
         result = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
         if 'messages' in result:
             messages.extend(result['messages'])
-            
+
         page_token = result.get('nextPageToken', None)
         if not page_token:
             break
@@ -136,7 +142,7 @@ def _search_gmail_messages(service, query):
 
 def _get_grib_attachment(service, msg_id, user_id='me'):
     """Retrieve and save the first GRIB attachment from a Gmail message.
-    
+
     Args:
     service: Authenticated Gmail API service instance.
     msg_id (str): ID of the Gmail message.
@@ -148,13 +154,13 @@ def _get_grib_attachment(service, msg_id, user_id='me'):
     try:
         message = service.users().messages().get(userId=user_id, id=msg_id).execute()
         parts = message['payload']['parts']
-        
+
         for part in parts:
             filename = part.get('filename')
             if filename and filename.endswith('.grb') and 'attachmentId' in part['body']:
                 path = _download_gmail_attachment(service, user_id, msg_id, part['body']['attachmentId'], filename)
                 return path
-        
+
         print("No GRIB attachment found.")
         return None
 
@@ -176,14 +182,9 @@ def _request_and_process_saildocs_grib(message_id, auth_service):
         tuple or False: A tuple containing the path to the downloaded GRIB attachment and the Garmin reply URL
                        if successful, False otherwise.
     """
-    
-    msg_text, garmin_reply_url = _fetch_message_text_and_url(message_id, auth_service)
 
-    # check the correctness of Saildoc request
-    is_valid, error_message = _is_valid_saildoc_request(msg_text)
-    if not is_valid:
-        inreach_func.send_reply_to_inreach(garmin_reply_url, f"Invalid Saildoc request: {error_message}")
-        return False
+    msg_text, garmin_reply_url = _fetch_message_text_and_url(message_id, auth_service)
+    print("check 1")
 
     # request saildocs grib data
     _send_gmail_message(auth_service, configs.SAILDOCS_EMAIL_QUERY, "", "send " + msg_text)
@@ -191,13 +192,16 @@ def _request_and_process_saildocs_grib(message_id, auth_service):
     last_response = saildoc_func.wait_for_saildocs_response(auth_service, time_sent)
 
     if not last_response:
+        print("check 5")
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Saildocs timeout")
         return False
 
     # process the saildocs response
     try:
+        print("check 6")
         grib_path = _get_grib_attachment(auth_service, last_response['id'])
     except:
+        print("check 7")
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Could not download grib attachment")
         return False
 
@@ -205,48 +209,9 @@ def _request_and_process_saildocs_grib(message_id, auth_service):
     return grib_path, garmin_reply_url
 
 
-
-def _is_valid_saildoc_request(msg_text):
-
-    # validate message text pattern
-    saildoc_pattern = re.compile(r'^(send|sub|cancel)?\s?(gfs|ecmwf):(\d+[NSWE],\d+[NSWE],\d+[NSWE],\d+[NSWE]\|\d+,\d+\|\d+(,\d+)*\|[a-zA-Z,]+)$')
-    match = re.match(saildoc_pattern, msg_text)
-    if not match:
-        return False, "Invalid request format"
-
-    # extract components from the matched pattern for additional validation
-    command, model, location, grid_spacing, times, params = match.groups()
-
-    # validate command
-    if command not in ["send", "sub", "cancel", ""]:
-        return False, f"Invalid command: '{command}' is not a valid command."
-
-    # validate weather models
-    if model not in ["GFS", "GFSwave", "WW3", "ECMWF", "ICON" "NAVGEM", "COAMPS", "HRRR", "RTOFS", "NDFD"]:
-        return False, f"Invalid weather model: '{model}' is not a valid weather model."
-
-    # validate latitude, longitude
-    lat_lon_match = re.match(r'(\d+)([NSWE]),(\d+)([NSWE]),(\d+)([NSWE]),(\d+)([NSWE])', location)
-    if not lat_lon_match:
-        return False, "Invalid location format"
-
-    # validate grid spacing
-    grid_spacing_match = re.match(r'(\d+),(\d+)', grid_spacing)
-    if not grid_spacing_match:
-        return False, "Invalid grid spacing format"
-    
-    # validate valid times
-    valid_times_match = re.search(r'\|(\d+(,\d+)*)', times)
-    if not valid_times_match:
-        return False, "Invalid valid times format"
-
-    return True, "Saildoc request is valid."
-
-
-
 def _get_new_or_refreshed_credentials(creds):
     """Helper to obtain new credentials or refresh expired ones.
-    
+
     Args:
     creds: google.oauth2.credentials.Credentials object
 
@@ -263,7 +228,7 @@ def _get_new_or_refreshed_credentials(creds):
 
 def _download_gmail_attachment(service, user_id, msg_id, att_id, filename):
     """Helper to download and save an attachment from a Gmail message.
-    
+
     Args:
     service: Authenticated Gmail API service instance.
     user_id (str): Gmail user ID. Use 'me' for the authenticated user.
@@ -277,11 +242,11 @@ def _download_gmail_attachment(service, user_id, msg_id, att_id, filename):
     att = service.users().messages().attachments().get(userId=user_id, messageId=msg_id, id=att_id).execute()
     data = att['data']
     file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
-    
+
     path = os.path.join(configs.FILE_PATH, filename)
     with open(path, 'wb') as f:
         f.write(file_data)
-    
+
     return path
 
 
@@ -320,7 +285,7 @@ def _get_new_message_ID(auth_service, previous_messages):
     """
     inreach_msgs = _search_gmail_messages(auth_service, configs.SERVICE_EMAIL)
     inreach_msgs_ids = {msg['id'] for msg in inreach_msgs}
-    
+
     return inreach_msgs_ids.difference(previous_messages)
 
 
@@ -338,5 +303,5 @@ def _fetch_message_text_and_url(message_id, auth_service):
     msg = auth_service.users().messages().get(userId='me', id=message_id).execute()
     msg_text = urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\r')[0].lower()
     garmin_reply_url = next((x.replace('\r', '') for x in urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\n') if configs.BASE_GARMIN_REPLY_URL in x), None)
-    
+
     return msg_text, garmin_reply_url
