@@ -42,16 +42,16 @@ The messages received on the inReach device appear as follows (based on the requ
 
 **Message 1**
 ```
-start message 0/1: <--- Indicates beginning of the first message
+msg 0/1: <--- Indicates beginning of the first message
 eJxzD/J0YmCIY2RgkGFKmvW/QTGTgUucQ5yBgZGBh4uBgUEUxGJQYPjPwMDCwMwQe6BR0qGBYY5Dw+4GeQd5BwcGMBBjYWA45Fx+jV3uZOtdi80Mdvu4FcyB
-end message 0/1 <--- Indicates end of the first message
+end <--- Indicates end of the first message
 ```
 
 **Message 2**
 ```
-start message 1/1: <--- Indicates beginning of the second message
+msg 1/1: <--- Indicates beginning of the second message
 wB236QYkmu62I4u94O5mA9bUhKCWPw0I0xPgpiuR5XYJDqDp0ZmvOAJaPKsjPDonyjAo7mEgYD4JroeYr1/FoZPsla2rF7Zisi3DUrD5AIClUBs=
-end message 1/1 <--- Indicates end of the second message
+end <--- Indicates end of the second message
 ```
 
 To decode these messages efficiently, open them via the Garmin Earthmate App on an iPad. Then, copy and paste the messages into the Decoder Jupyter Notebook, for instance, using the Carnets App. Once decoded, you can view the resulting GRIB-file with a GRIB viewer app, such as LuckGrib.

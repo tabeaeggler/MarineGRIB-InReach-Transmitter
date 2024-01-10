@@ -55,17 +55,15 @@ def process_new_inreach_message(auth_service):
     garmin_reply_url = None
 
     for message_id in unanswered_messages:
+        print("New msg received")
         try:
-            print("check 2")
             grib_path, garmin_reply_url = _request_and_process_saildocs_grib(message_id, auth_service)
             print(f"Answered message {message_id}", flush=True)
         except Exception as e:
-            print("check 4")
             print(f"Error answering message {message_id}: {e}", flush=True)
         finally:
             _append_to_previous_messages(message_id)
 
-    print("check 3")
     return grib_path, garmin_reply_url
 
 
@@ -184,7 +182,6 @@ def _request_and_process_saildocs_grib(message_id, auth_service):
     """
 
     msg_text, garmin_reply_url = _fetch_message_text_and_url(message_id, auth_service)
-    print("check 1")
 
     # request saildocs grib data
     _send_gmail_message(auth_service, configs.SAILDOCS_EMAIL_QUERY, "", "send " + msg_text)
@@ -192,16 +189,13 @@ def _request_and_process_saildocs_grib(message_id, auth_service):
     last_response = saildoc_func.wait_for_saildocs_response(auth_service, time_sent)
 
     if not last_response:
-        print("check 5")
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Saildocs timeout")
         return False
 
     # process the saildocs response
     try:
-        print("check 6")
         grib_path = _get_grib_attachment(auth_service, last_response['id'])
     except:
-        print("check 7")
         inreach_func.send_reply_to_inreach(garmin_reply_url, "Could not download grib attachment")
         return False
 

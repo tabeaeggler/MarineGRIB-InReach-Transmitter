@@ -20,10 +20,10 @@ def send_messages_to_inreach(url, gribmessage):
     """
     message_parts = _split_message(gribmessage)
     responses = [_post_request_to_inreach(url, part) for part in message_parts]
-    
+
     # Introducing a delay to prevent overwhelming the API
     time.sleep(configs.DELAY_BETWEEN_MESSAGES)
-    
+
     return responses
 
 
@@ -33,32 +33,32 @@ def send_messages_to_inreach(url, gribmessage):
 def _split_message(gribmessage):
     """
     Splits a given grib message into chunks and encapsulates each chunk with its index.
-    
+
     Args:
     gribmessage (str): The grib message that needs to be split into chunks.
-    
+
     Returns:
-    list: A list of formatted strings where each string has the format `start message {index}/{total_splits}:\n{chunk}\nend message {index}/{total_splits}`.
+    list: A list of formatted strings where each string has the format `msg {index}/{total_splits}:\n{chunk}\nend`.
     """
     total_splits = (len(gribmessage) + configs.MESSAGE_SPLIT_LENGTH - 1) // configs.MESSAGE_SPLIT_LENGTH
 
     chunks = [gribmessage[i:i + configs.MESSAGE_SPLIT_LENGTH] for i in range(0, len(gribmessage), configs.MESSAGE_SPLIT_LENGTH)]
 
     formatted_chunks = [
-        f"start message {index + 1}/{total_splits}:\n{chunk}\nend message {index + 1}/{total_splits}"
+        f"msg {index + 1}/{total_splits}:\n{chunk}\nend"
         for index, chunk in enumerate(chunks)
     ]
     return formatted_chunks
 
 
-def _post_request_to_inreach(url, message_str): 
+def _post_request_to_inreach(url, message_str):
     """
     Sends a post request with the message to the specified InReach URL.
-    
+
     Args:
     url (str): The InReach endpoint URL to send the post request.
     message_str (str): The message string to be sent to InReach.
-    
+
     Returns:
     Response: A Response object containing the server's response to the request.
     """
@@ -69,7 +69,7 @@ def _post_request_to_inreach(url, message_str):
         'MessageId': str(random.randint(10000000, 99999999)),
         'Guid': guid,
     }
-    
+
     response = requests.post(url, cookies=configs.INREACH_COOKIES, headers=configs.INREACH_HEADERS, data=data)
     if response.status_code == 200:
         print('Reply to InReach Sent:', message_str)
@@ -77,5 +77,5 @@ def _post_request_to_inreach(url, message_str):
         print('Error sending part:', message_str)
         print(f'Status Code: {response.status_code}')
         print(f'Response Content: {response.content}')
-        
+
     return response
