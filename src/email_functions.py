@@ -65,6 +65,8 @@ def fetch_message_text_and_url(auth_service):
     msg_text = urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\r')[0].lower()
     garmin_reply_url = next((x.replace('\r', '') for x in urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\n') if configs.BASE_GARMIN_REPLY_URL in x), None)
 
+    _append_to_previous_messages(msg_id)
+
     return msg_text, msg_id, garmin_reply_url
 
 

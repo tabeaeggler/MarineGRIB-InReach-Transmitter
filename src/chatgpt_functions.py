@@ -1,12 +1,16 @@
-import time
-import pandas as pd
-import openai
 import sys
 sys.path.append(".")
 from src import configs
+import base64
+import json
+from openai import OpenAI
+
+client = OpenAI(api_key=configs.OPEN_AI_KEY)
+
 
 
 def generate_gpt_response(msg):
+
     """
     Generate a response using the OpenAI GPT-4 Turbo model based on a given prompt.
 
@@ -33,13 +37,14 @@ def generate_gpt_response(msg):
         print("Invalid message format. Please use 'gpt <max_words>: <prompt>'")
         return
 
-    openai.api_key = configs.OPEN_AI_KEY
-
-    response = openai.Completion.create(
-        engine='gpt-4-1106-preview',  # GPT-4 Turbo model
-        prompt=f'Answer this question in maximum {max_words} words: \nUser: {prompt}. Use only base64 characters',
+    response = client.chat.completions.create(
+        model = "gpt-4-1106-preview",
+        stop = None,
         n=1,
-        stop=None
-    )
-    print(response.choices[0].text.strip())
-    return response.choices[0].text.strip()
+        messages = [
+            {"role": "user", "content": f"Answer this question in maximum {max_words} words: \nUser: {prompt}."}
+        ])
+
+    print("answer:", response.choices[0].message.content)
+    
+    return response.choices[0].message.content

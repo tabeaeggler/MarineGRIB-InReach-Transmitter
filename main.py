@@ -25,13 +25,13 @@ if __name__ == "__main__":
 
             # check whether it is a GRIB or CHATGPT request
             if msg_text.startswith("gpt"):
-                print("gpt1")
+                print("gpt request")
                 # chatgpt request
                 encoded_file = chatgpt_func.generate_gpt_response(msg_text)
                         
             else:  
                 # GRIB request
-                print("grib1")
+                print("grib request")
                 result = email_func.request_and_process_saildocs_grib(msg_id, auth_service, msg_text, garmin_reply_url)
                 if result is not None:
                     grib_path, garmin_reply_url = result

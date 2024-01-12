@@ -70,7 +70,9 @@ def _post_request_to_inreach(url, message_str):
         'Guid': guid,
     }
 
+
     response = requests.post(url, cookies=configs.INREACH_COOKIES, headers=configs.INREACH_HEADERS, data=data)
+
     if response.status_code == 200:
         print('Reply to InReach Sent:', message_str)
     else:

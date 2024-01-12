@@ -1,6 +1,6 @@
-# MarineGRIB-InReach-Service
+# MarineGRIB-CHATGPT-InReach-Service
 
-### NOTE: I attempted to transmit surface predictions using the image located at https://ocean.weather.gov/A_sfc_full_ocean_color.png. Despite compressing and resizing the image, its size remains significantly large and needed 2000 garmin inreach messages. Even after reducing it to 400x400 pixels with 50 quality, it still requires around 2000 messages!
+### NOTE: This version contains a additional chatGPT module, see information at the bottom.
 
 Before setting out on our year-long sailing voyage, we needed a solution for accessing crucial weather data while being out on the open sea without internet connection. With this handy tool, we can now pull GRIB files on-demand using the Garmin inReach device, which turned out to be a cost-effective workaround to pricier options like IridiumGo. The system's entire process is illustrated in the following diagram:
 ![Workflow](images/workflow_diagram.jpg)
@@ -69,3 +69,18 @@ Utilising this method, you can acquire wind and pressure data for the Atlantic c
 
 **Result (in GRIB viewer app):**
 ![Screenshot GRIB viewer](images/screenshot_grib_viewer.jpg)
+
+
+
+## Addition: ChatGPT module
+
+I have added a CHATGPT module that leverages the OpenAI GPT-4 Turbo model to enable the Garmin user to ask any questions while being on open seas. To utilise this module, make sure your OpenAI API key is configured in the 'configs' file.
+
+The format for a message from the Garmin device is as follows: "gpt <max_words>: <prompt>", where <max_words> represents the maximum number of words for the response, and <prompt> is the user's input prompt.
+
+**Example ChatGPT module:**
+```gpt 20: What are trade winds?```
+
+Answer sent to Garmin: Trade winds are steady, persistent easterly winds blowing in Earth's equatorial region, important for historical maritime navigation.
+
+
