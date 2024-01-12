@@ -1,5 +1,7 @@
 # MarineGRIB-InReach-Service
 
+NOTE: In branch "chatgpt_conversation_module", I've added a ChatGPT module that leverages the OpenAI GPT-4 model to enable the Garmin user to ask any questions while being on open seas. 
+
 Before setting out on our year-long sailing voyage, we needed a solution for accessing crucial weather data while being out on the open sea without internet connection. With this handy tool, we can now pull GRIB files on-demand using the Garmin inReach device, which turned out to be a cost-effective workaround to pricier options like IridiumGo. The system's entire process is illustrated in the following diagram:
 ![Workflow](images/workflow_diagram.jpg)
 
