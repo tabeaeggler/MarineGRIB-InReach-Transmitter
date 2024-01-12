@@ -1,5 +1,7 @@
 # MarineGRIB-InReach-Service
 
+### NOTE: I attempted to transmit surface predictions using the image located at https://ocean.weather.gov/A_sfc_full_ocean_color.png. Despite compressing and resizing the image, its size remains significantly large and needed 2000 garmin inreach messages. Even after reducing it to 400x400 pixels with 50 quality, it still requires around 2000 messages!
+
 Before setting out on our year-long sailing voyage, we needed a solution for accessing crucial weather data while being out on the open sea without internet connection. With this handy tool, we can now pull GRIB files on-demand using the Garmin inReach device, which turned out to be a cost-effective workaround to pricier options like IridiumGo. The system's entire process is illustrated in the following diagram:
 ![Workflow](images/workflow_diagram.jpg)
 

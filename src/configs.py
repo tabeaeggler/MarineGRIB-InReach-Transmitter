@@ -40,3 +40,6 @@ INREACH_COOKIES = {
 # Others
 MESSAGE_SPLIT_LENGTH = 120 # Save length as the message got cut sometimes
 DELAY_BETWEEN_MESSAGES = 5
+
+#chatgpt API
+OPEN_AI_KEY = "FILL IN"

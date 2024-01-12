@@ -34,37 +34,39 @@ def gmail_authenticate():
     return build('gmail', 'v1', credentials=creds)
 
 
-def process_new_inreach_message(auth_service):
+
+
+
+
+
+def fetch_message_text_and_url(auth_service):
     """
-    Check for new messages, process them, and record their IDs.
+    Retrieve the content of a message and extract the text and reply URL.
 
     Args:
+        message_id (str): The ID of the message to retrieve.
         auth_service (obj): The authentication service object.
 
     Returns:
-        tuple or None: A tuple containing the path to the downloaded GRIB attachment and the Garmin reply URL
-                       if successful, None otherwise.
+        tuple: The extracted message text and Garmin reply URL.
     """
+
     previous_messages = _load_previous_messages()
     unanswered_messages = _get_new_message_ID(auth_service, previous_messages)
+    msg_id = ""
 
     if not unanswered_messages:
         return None
 
-    grib_path = None
-    garmin_reply_url = None
-
     for message_id in unanswered_messages:
-        print("New msg received")
-        try:
-            grib_path, garmin_reply_url = _request_and_process_saildocs_grib(message_id, auth_service)
-            print(f"Answered message {message_id}", flush=True)
-        except Exception as e:
-            print(f"Error answering message {message_id}: {e}", flush=True)
-        finally:
-            _append_to_previous_messages(message_id)
+        msg_id = message_id 
 
-    return grib_path, garmin_reply_url
+    msg = auth_service.users().messages().get(userId='me', id=message_id).execute()
+    msg_text = urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\r')[0].lower()
+    garmin_reply_url = next((x.replace('\r', '') for x in urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\n') if configs.BASE_GARMIN_REPLY_URL in x), None)
+
+    return msg_text, msg_id, garmin_reply_url
+
 
 
 
@@ -168,7 +170,7 @@ def _get_grib_attachment(service, msg_id, user_id='me'):
 
 
 
-def _request_and_process_saildocs_grib(message_id, auth_service):
+def request_and_process_saildocs_grib(message_id, auth_service, msg_text, garmin_reply_url):
     """
     Request Saildocs GRIB data, process the response, and return the GRIB path along with the Garmin reply URL.
 
@@ -180,8 +182,6 @@ def _request_and_process_saildocs_grib(message_id, auth_service):
         tuple or False: A tuple containing the path to the downloaded GRIB attachment and the Garmin reply URL
                        if successful, False otherwise.
     """
-
-    msg_text, garmin_reply_url = _fetch_message_text_and_url(message_id, auth_service)
 
     # request saildocs grib data
     _send_gmail_message(auth_service, configs.SAILDOCS_EMAIL_QUERY, "", "send " + msg_text)
@@ -283,19 +283,5 @@ def _get_new_message_ID(auth_service, previous_messages):
     return inreach_msgs_ids.difference(previous_messages)
 
 
-def _fetch_message_text_and_url(message_id, auth_service):
-    """
-    Retrieve the content of a message and extract the text and reply URL.
 
-    Args:
-        message_id (str): The ID of the message to retrieve.
-        auth_service (obj): The authentication service object.
 
-    Returns:
-        tuple: The extracted message text and Garmin reply URL.
-    """
-    msg = auth_service.users().messages().get(userId='me', id=message_id).execute()
-    msg_text = urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\r')[0].lower()
-    garmin_reply_url = next((x.replace('\r', '') for x in urlsafe_b64decode(msg['payload']['body']['data']).decode().split('\n') if configs.BASE_GARMIN_REPLY_URL in x), None)
-
-    return msg_text, garmin_reply_url
